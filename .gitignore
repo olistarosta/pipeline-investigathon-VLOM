@@ -1,0 +1,11 @@
+# datos y salidas: no se suben (los datos se bajan con los scripts, lo precalculado está en el release)
+/data/*
+/test/*
+/generados/*
+/predicciones/*
+!/data/README.md
+!/test/README.md
+!/generados/README.md
+!/predicciones/README.md
+__pycache__/
+.venv/
