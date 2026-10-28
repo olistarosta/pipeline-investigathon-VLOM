@@ -15,6 +15,7 @@ de fecha < 1.º del mes de t; candidatas del semestre de la licitación (o la fo
 """
 from __future__ import annotations
 
+import gc
 import time
 
 import numpy as np
@@ -23,9 +24,9 @@ import pandas as pd
 import b0 as B0
 from . import grafo as GR
 from . import tablas as T
-from .config import GEN, INICIO_GRAFO, LOTE_CORTE, NIVELES, TOP, VERTICALES, W_TITULO
+from .config import FUENTE, GEN, INICIO_GRAFO, LOTE_CORTE, NIVELES, RECORRIDOS, TOP, VERTICALES, W_TITULO
+from .recorrido import combinar, hay_gpu, recorrer, reducir
 from .recorrido import corte as corte_grafo
-from .recorrido import hay_gpu
 from .texto import Densos, consulta_tfidf, tfidf_vertical
 
 LOTE = 32
@@ -158,13 +159,47 @@ def observables(fuente: str) -> None:
             continue
         for g in D:
             GR.armar(D[g], g, c)
-        G = {g: GR.cargar(D[g], g, c, con_v=(g == "gemb")) for g in D}
         print(f"  corte {c}: {sum(len(x[2]) for x in pend):,} licitaciones", flush=True)
+        if fuente != FUENTE:
+            _por_grafo(D, c, pend, texto, gpu)
+            continue
+        G = {g: GR.cargar(D[g], g, c, con_v=(g == "gemb")) for g in D}
         for v, sem, L, r in pend:
             X = corte_grafo(D, G, L, D["gemb"].cand[(v, sem)], texto[v], gpu)
             X["id"] = X.id.str[len(v) + 1:]
             r.parent.mkdir(exist_ok=True)
             X.to_parquet(r, index=False)
+
+
+def _por_grafo(D: dict, c: str, pend: list, texto: dict, gpu: bool) -> None:
+    """Datos nuevos (un solo corte): un grafo en memoria a la vez. Con cada uno recorre todos los lotes y guarda en
+    disco sólo las columnas de las candidatas (`recorrido.reducir`); después arma el pool y los observables de cada
+    lote (`recorrido.combinar`). Da lo mismo que `recorrido.corte` con los dos grafos cargados."""
+    parcial = lambda r, nom: r.parent / "parcial" / f"{r.stem}_{nom}.npy"  # noqa: E731
+    emp = None
+    for g in D:
+        t0 = time.time()
+        G = GR.cargar(D[g], g, c, con_v=(g == "gemb"))
+        if emp is None:
+            emp = G.empresas
+        assert emp.equals(G.empresas)
+        for v, sem, L, r in pend:
+            ok = np.asarray(emp.isin(D["gemb"].cand[(v, sem)]))
+            for nom, cfg in RECORRIDOS.items():
+                if cfg["grafo"] == g and not parcial(r, nom).exists():
+                    parcial(r, nom).parent.mkdir(parents=True, exist_ok=True)
+                    np.save(parcial(r, nom), reducir(recorrer(D[g], G, nom, L, gpu), ok, cfg))
+        del G
+        gc.collect()
+        print(f"    grafo {g}: {time.time() - t0:.0f} s", flush=True)
+    for v, sem, L, r in pend:
+        cand = D["gemb"].cand[(v, sem)]
+        ok = np.asarray(emp.isin(cand))
+        X = combinar({nom: np.load(parcial(r, nom)) for nom in RECORRIDOS}, emp.values[ok], L, cand, texto[v])
+        X["id"] = X.id.str[len(v) + 1:]
+        X.to_parquet(r, index=False)
+        for nom in RECORRIDOS:
+            parcial(r, nom).unlink()
 
 
 def pares(v: str, fuente: str) -> pd.DataFrame:

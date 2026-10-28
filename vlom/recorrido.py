@@ -275,52 +275,64 @@ def recorrer(D: GR.Conjunto, G: GR.Grafo, nombre: str, L: pd.DataFrame, gpu: boo
     return out
 
 
-def puesto_en_fila(M: np.ndarray, fila: np.ndarray, x: np.ndarray, mayor: bool) -> np.ndarray:
-    """1 + cuántas empresas del grafo tienen un valor mejor que x en la fila `fila` de M."""
-    out = np.empty(len(x), np.float32)
-    for f in np.unique(fila):
-        m = fila == f
-        o = np.sort(-M[f] if mayor else M[f])
-        out[m] = 1 + np.searchsorted(o, -x[m] if mayor else x[m], side="left")
-    return out
+def reducir(M: np.ndarray, ok: np.ndarray, cfg: dict) -> np.ndarray:
+    """De los observables de un recorrido (licitaciones × empresas del grafo), sólo las columnas de las candidatas
+    (`ok`): (2 × licitaciones × candidatas) el valor y su puesto entre todas las empresas del grafo (NaN si no la
+    alcanza). Es lo único que usa `combinar`: se puede soltar el grafo antes de recorrer el otro."""
+    suma = cfg["tipo"] == "suma"
+    x = M[:, ok]
+    p = np.full(x.shape, np.nan, np.float32)
+    for q in range(len(M)):
+        alc = x[q] > 0 if suma else np.isfinite(x[q])
+        o = np.sort(-M[q] if suma else M[q])
+        p[q, alc] = 1 + np.searchsorted(o, -x[q, alc] if suma else x[q, alc], side="left")
+    return np.stack([x, p])
 
 
-def corte(D: dict, grafos: dict, L: pd.DataFrame, cand: set, texto: dict, gpu: bool) -> pd.DataFrame:
-    """Observables y pool de las licitaciones L (de una vertical, todas del mismo corte y semestre). `D` y `grafos`:
-    {"gemb", "gtf"} -> Conjunto y Grafo; `texto`: {id: top 100 por parecido de texto}."""
-    t0 = time.time()
-    O = {nom: recorrer(D[cfg["grafo"]], grafos[cfg["grafo"]], nom, L, gpu) for nom, cfg in RECORRIDOS.items()}
-    emp = grafos["gemb"].empresas
-    assert emp.equals(grafos["gtf"].empresas)
-    ok = np.asarray(emp.isin(cand))
+def combinar(R: dict, emp: np.ndarray, L: pd.DataFrame, cand: set, texto: dict) -> pd.DataFrame:
+    """El pool y los observables de las licitaciones L, desde `R`: {recorrido: `reducir`}, con columnas `emp` (las
+    empresas del grafo que son candidatas, en el orden del grafo)."""
     filas = []
     for q, lid in enumerate(L.id):
         por = {}
         for nom, cfg in RECORRIDOS.items():
-            x = O[nom][q]
+            x = R[nom][0, q]
             if cfg["tipo"] == "suma":
-                i = np.flatnonzero(ok & (x > 0))
+                i = np.flatnonzero(x > 0)
                 i = i[np.argsort(-x[i], kind="stable")[:TOP]]
             else:
-                i = np.flatnonzero(ok & np.isfinite(x))
+                i = np.flatnonzero(np.isfinite(x))
                 i = i[np.argsort(x[i], kind="stable")[:TOP]]
-            por[f"pool_{nom}"] = set(emp.values[i])
+            por[f"pool_{nom}"] = set(emp[i])
         por["pool_texto"] = set(texto.get(lid, [])) & cand
         x = pd.DataFrame({"id": lid, "q": q, "parent_uei": sorted(set().union(*por.values()))})
         for c, e in por.items():
             x[c] = x.parent_uei.isin(e)
         filas.append(x)
     X = pd.concat(filas, ignore_index=True)
-    col = emp.get_indexer(X.parent_uei)
-    f, en = X.q.values, col >= 0
+    col = pd.Index(emp).get_indexer(X.parent_uei)
+    f, en, c = X.q.values, col >= 0, np.maximum(col, 0)
     for nom, cfg in RECORRIDOS.items():
-        M = O[nom]
-        x = np.where(en, M[f, np.maximum(col, 0)], 0 if cfg["tipo"] == "suma" else np.inf).astype(np.float32)
+        x = np.where(en, R[nom][0, f, c], 0 if cfg["tipo"] == "suma" else np.inf).astype(np.float32)
+        p = np.where(en, R[nom][1, f, c], np.nan).astype(np.float32)
         if cfg["tipo"] == "suma":
             X[f"{nom}_s"] = x
-            X[f"{nom}_puesto"] = np.where(x > 0, puesto_en_fila(M, f, x, True), np.nan)
+            X[f"{nom}_puesto"] = p
         else:
-            X[f"{nom}_puesto_c"] = np.where(np.isfinite(x), puesto_en_fila(M, f, x, False), np.nan)
+            X[f"{nom}_puesto_c"] = p
+    return X.drop(columns="q")
+
+
+def corte(D: dict, grafos: dict, L: pd.DataFrame, cand: set, texto: dict, gpu: bool) -> pd.DataFrame:
+    """Observables y pool de las licitaciones L (de una vertical, todas del mismo corte y semestre). `D` y `grafos`:
+    {"gemb", "gtf"} -> Conjunto y Grafo; `texto`: {id: top 100 por parecido de texto}."""
+    t0 = time.time()
+    emp = grafos["gemb"].empresas
+    assert emp.equals(grafos["gtf"].empresas)
+    ok = np.asarray(emp.isin(cand))
+    R = {nom: reducir(recorrer(D[cfg["grafo"]], grafos[cfg["grafo"]], nom, L, gpu), ok, cfg)
+         for nom, cfg in RECORRIDOS.items()}
+    X = combinar(R, emp.values[ok], L, cand, texto)
     print(f"    {len(L):,} licitaciones, {len(X) / max(len(L), 1):.0f} candidatas por lista ({time.time() - t0:.0f} s)",
           flush=True)
-    return X.drop(columns="q")
+    return X
