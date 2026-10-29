@@ -10,7 +10,7 @@ cross-encoder ni Gemma, 15 variables) está en [`simple/`](simple/); comparten e
 | | **completo (final)** | simple | B0 |
 |---|---|---|---|
 | MRR en val (2023S2, modelo `train`, promedio de las cinco verticales) | **0,378** | 0,350 | 0,137 |
-| MRR en nuestro test (2024S1, modelo `sin_test`, promedio de las cinco) | **0,341** | 0,313 | 0,120 |
+| MRR en nuestro test (2024S1, entrenado con train + val, promedio de las cinco) | **0,342** | 0,315 | 0,120 |
 | Δ MRR contra el B0 en val, por vertical (IC95) | j +0,206 (+0,183, +0,229) · r +0,214 (+0,178, +0,250) · d +0,388 (+0,324, +0,451) · it +0,241 (+0,200, +0,282) · rd +0,157 (+0,077, +0,243) | j +0,186 · r +0,192 · d +0,342 · it +0,211 · rd +0,133 | — |
 | para predecir el test con lo precalculado | < 1 min | < 1 min | |
 
@@ -18,6 +18,11 @@ Tres modelos, según con qué se entrenan: `train` (2022S1–2023S1) se evalúa 
 nuestro test; `todo` (2022S1–2024S1, todo `data/`) es el que predice el test de los organizadores. Detalle de val por
 vertical (Hit@1, Hit@5, Hit@100, S_inc / S_new): `generados/modelos/<pipeline>/train/resumen_val.csv` (viene en el
 release).
+
+Los números de test son los del informe: la única evaluación en test del grupo (completo − B0 +0,222, IC95 (+0,199,
++0,245); completo − simple +0,026 (+0,014, +0,040)). El modelo `sin_test` reentrenado con este repo da 0,341 y 0,313:
+comparado licitación por licitación, la única diferencia en el límite de lo significativo es `r` en el completo (−0,010);
+el entrenamiento en GPU no es determinista.
 
 ## Para los jueces: obtener las predicciones del test
 
