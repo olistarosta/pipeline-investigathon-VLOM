@@ -42,9 +42,10 @@ class Motor:
         a, b = np.minimum(G.u[m], G.v[m]), np.maximum(G.u[m], G.v[m])
         k = a.astype(np.int64) * G.n_nodos + b
         o = np.argsort(k, kind="stable")
-        self.w, self.interno = G.w[m][o], G.r[m][o] > 0
-        self.V = G.V[m][o] if G.V is not None else None
-        self.ti, self.tj = G.ti[m][o], G.tj[m][o]
+        e = np.flatnonzero(m)[o]            # aristas del grafo en el orden del motor; V se lee de G.V sin copiarlo
+        self.w, self.interno = G.w[e], G.r[e] > 0
+        self.e = e if G.V is not None else None
+        self.ti, self.tj = G.ti[e], G.tj[e]
         k = k[o]
         self.ini = np.r_[0, np.flatnonzero(np.diff(k)) + 1]
         pk = k[self.ini]
@@ -62,7 +63,7 @@ class Motor:
     def similitudes(self, Q: np.ndarray, lote: int = 400_000) -> np.ndarray:
         S = np.empty((len(self.w), len(Q)), np.float32)
         for a in range(0, len(self.w), lote):
-            S[a:a + lote] = self.V[a:a + lote].astype(np.float32) @ Q.T
+            S[a:a + lote] = self.G.V[self.e[a:a + lote]].astype(np.float32) @ Q.T
         return S
 
     def norma_t(self, HT) -> np.ndarray:
