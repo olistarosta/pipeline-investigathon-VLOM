@@ -21,9 +21,13 @@ release).
 
 ## Para los jueces: obtener las predicciones del test
 
-Hace falta [uv](https://docs.astral.sh/uv/) (instala Python y las dependencias). Desde la raíz del repo:
+**Requisitos:** [uv](https://docs.astral.sh/uv/) (instala Python y las dependencias), y
+[GitHub CLI](https://cli.github.com/) (`gh`) con una sesión iniciada (`gh auth login`) en la cuenta invitada al repo:
+el repo y su release son privados. Unos 10 GB de disco: el entorno con PyTorch y lo precalculado. No hace falta GPU.
 
 ```
+gh repo clone olistarosta/pipeline-investigathon-VLOM vlom
+cd vlom
 uv sync
 uv run bajar_datos.py            # data/: los datos del task (release datos-v1 de los organizadores)
 uv run bajar_test.py             # test/: el test de los organizadores (release test-v1)
@@ -31,7 +35,8 @@ uv run bajar_precalculado.py     # generados/: embeddings, grafos, modelos y lo 
 uv run predecir.py               # el completo, modelo `todo`
 ```
 
-Escribe `predicciones/test/completo_todo/{rd,j,d,r,it}.csv` (los CSV de la entrega), con el formato de `b0.py`:
+Tarda unos minutos más lo que tarden las descargas (~5 GB). Escribe `predicciones/test/completo_todo/{rd,j,d,r,it}.csv`,
+**idénticos byte a byte a los CSV entregados** (verificado desde un clon nuevo), con el formato de `b0.py`:
 
 ```
 id,parent_uei,puesto
@@ -44,8 +49,8 @@ Una fila por empresa rankeada, hasta 100 por licitación, puestos desde 1, sólo
 Antes de escribirse, cada archivo pasa por `evaluar.validar` (el chequeo de formato de los organizadores). Los CSV
 entregados también están en el release (`predicciones_1.zip`).
 
-- **Acceso**: si el repo es privado, `bajar_precalculado.py` usa `gh` (GitHub CLI) con una cuenta con acceso
-  (`gh auth login`); si es público, baja por HTTPS sin nada más.
+- **Acceso**: con el repo privado, `bajar_precalculado.py` baja el release con `gh` y la cuenta iniciada; si el repo
+  fuera público, baja por HTTPS sin nada más.
 - **Sin lo del test** (`uv run bajar_precalculado.py --sin-test`), `predecir.py` calcula todo para las licitaciones del
   test: embeddings, recorrido del grafo, variables y el cross-encoder (GPU recomendada).
 - **Windows**: clonar el repo en una ruta corta (p. ej. `C:\Users\<usuario>\vlom`). Con rutas de más de 260 caracteres,
@@ -67,10 +72,22 @@ esa carpeta, borrar `generados/<carpeta>/`** (y `generados/embeddings/*/lic/<car
 
 ## Entrenar desde cero
 
+Para reproducir la entrega sin lo precalculado, después de `uv sync`, `bajar_datos.py` y `bajar_test.py`:
+
+```
+uv run entrenar.py                     # modelo todo (train + val + test de data/): ~5–6 h con GPU
+uv run predecir.py                     # -> predicciones/test/completo_todo/
+```
+
+Las predicciones salen equivalentes pero no idénticas byte a byte a las entregadas: los embeddings (float16 en GPU) y el
+cross-encoder afinado no son deterministas en GPU. En val, dos corridas difieren en ±0,006 de MRR.
+
+EmbeddingGemma 2 (`google/embeddinggemma-2`) puede pedir aceptar su licencia en Hugging Face: en ese caso, exportar
+`HF_TOKEN` con un token de una cuenta que la aceptó. Otros modelos y pasos:
+
 ```
 uv run entrenar.py --modelo train      # sólo train, y lo evalúa en val (2023S2) contra el B0
-uv run entrenar.py                     # modelo todo (train + val + test de data/): el de la entrega
-uv run entrenar.py --modelo sin_test
+uv run entrenar.py --modelo sin_test   # train + val (para evaluar en 2024S1)
 uv run entrenar.py cache               # un paso: embeddings | cache | limpio | completo | evaluar
 ```
 
