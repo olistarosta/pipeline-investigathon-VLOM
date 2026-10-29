@@ -14,11 +14,11 @@ from vlom.release import CORTE_NUEVO, PARTES, empaquetar
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("partes", nargs="*", choices=PARTES, default=list(PARTES))
-    a = ap.parse_args()
-    if "prediccion" in a.partes:
+    ap.add_argument("partes", nargs="*", choices=PARTES, help="por defecto, todas")
+    partes = ap.parse_args().partes or list(PARTES)
+    if "prediccion" in partes:
         grafos_corte(CORTE_NUEVO)              # los grafos con todo el historial, para los datos nuevos
-    for parte in a.partes:
+    for parte in partes:
         for z in empaquetar(parte):
             print(f"  {z}")
 
