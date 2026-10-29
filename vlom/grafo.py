@@ -74,8 +74,9 @@ class Conjunto:
             lic = pd.concat([lic_conjunto(f) for f in self.fuentes]).set_index("id").reindex(self.Q.index)
             _TFIDF[clave] = (tf(self.textos), tf(consulta_tfidf(lic, bp)), self.textos, self.Q.index)
         HT, Qt, textos, qidx = _TFIDF[clave]
-        assert textos.equals(self.textos) and qidx.equals(self.Q.index)
-        return HT, Qt
+        pos = qidx.get_indexer(self.Q.index)         # los dos Conjunto pueden tener las licitaciones en otro orden
+        assert textos.equals(self.textos) and (pos >= 0).all()
+        return HT, Qt[pos]
 
 
 _TFIDF: dict = {}
