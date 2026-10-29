@@ -11,7 +11,7 @@ cross-encoder ni Gemma, 15 variables) está en [`simple/`](simple/); comparten e
 |---|---|---|---|
 | MRR en val (2023S2, modelo `train`, promedio de las cinco verticales) | **0,378** | 0,350 | 0,137 |
 | Δ MRR contra el B0 en val, por vertical (IC95) | j +0,206 (+0,183, +0,229) · r +0,214 (+0,178, +0,250) · d +0,388 (+0,324, +0,451) · it +0,241 (+0,200, +0,282) · rd +0,157 (+0,077, +0,243) | j +0,186 · r +0,192 · d +0,342 · it +0,211 · rd +0,133 | — |
-| para predecir el test con lo precalculado | CPU, ~minutos | CPU, ~minutos | |
+| para predecir el test con lo precalculado | < 1 min | < 1 min | |
 
 Detalle por vertical (Hit@1, Hit@5, Hit@100, S_inc / S_new): `generados/modelos/<pipeline>/train/resumen_val.csv`
 (viene en el release).
@@ -45,8 +45,9 @@ entregados también están en el release (`predicciones_1.zip`).
   (`gh auth login`); si es público, baja por HTTPS sin nada más.
 - **Sin lo del test** (`uv run bajar_precalculado.py --sin-test`), `predecir.py` calcula todo para las licitaciones del
   test: embeddings, recorrido del grafo, variables y el cross-encoder (GPU recomendada).
-- **Windows + OneDrive**: si `uv sync` falla con un error de hardlinks, correrlo con la variable de entorno
-  `UV_LINK_MODE=copy`.
+- **Windows**: clonar el repo en una ruta corta (p. ej. `C:\Users\<usuario>\vlom`). Con rutas de más de 260 caracteres,
+  Python no carga algunas extensiones de scikit-learn (`ModuleNotFoundError` dentro de `sklearn`). Si `uv sync` falla con
+  un error de hardlinks (carpetas de OneDrive), correrlo con la variable de entorno `UV_LINK_MODE=copy`.
 
 Opciones de `predecir.py`:
 
