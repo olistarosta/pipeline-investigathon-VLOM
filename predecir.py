@@ -1,8 +1,8 @@
-"""Rankea licitaciones nuevas con los dos pipelines y escribe un CSV por vertical (el formato de la entrega).
+"""Rankea licitaciones nuevas con el pipeline final (completo) y escribe un CSV por vertical (el formato de la entrega).
 
-    uv run predecir.py                         # test/, los dos pipelines, modelo `todo` (train + val + test)
+    uv run predecir.py                         # test/, el completo, modelo `todo` (train + val + test)
     uv run predecir.py --modelo sin_test       # el modelo entrenado sin 2024S1 (train + val)
-    uv run predecir.py --pipeline limpio       # sólo el limpio (sin GPU, en minutos)
+    uv run predecir.py --pipeline ambos        # el completo y el simple (limpio); sólo el simple: simple/predecir.py
     uv run predecir.py --datos otra_carpeta    # otra carpeta con <v>/licitaciones.parquet y <v>/empresas.parquet
 
 Necesita `data/` (bajar_datos.py), la carpeta de datos nuevos (bajar_test.py) y lo precalculado
@@ -23,7 +23,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--datos", default="test", help="carpeta (en la raíz) con las licitaciones nuevas")
     ap.add_argument("--modelo", choices=list(MODELOS), default="todo")
-    ap.add_argument("--pipeline", choices=["ambos", "limpio", "completo"], default="ambos")
+    ap.add_argument("--pipeline", choices=["completo", "limpio", "ambos"], default="completo")
     a = ap.parse_args()
     if not (RAIZ / a.datos / "j" / "licitaciones.parquet").exists():
         raise SystemExit(f"no hay licitaciones en {a.datos}/<v>/ (para el test: uv run bajar_test.py)")
