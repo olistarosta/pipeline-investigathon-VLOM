@@ -5,24 +5,22 @@ usando sólo información anterior a su fecha de publicación.
 
 **El pipeline final es el completo** (`predecir.py`, `entrenar.py`): un grafo conjunto de oficinas y empresas, texto,
 el historial y un cross-encoder afinado, ordenados por un LambdaRank de 22 variables. La versión simple (sin el
-cross-encoder ni Gemma, 15 variables) está en [`simple/`](simple/); comparten el código de `vlom/`.
+cross-encoder ni Gemma, 15 variables) está en [`simple/`](simple/); los dos usan el código de `vlom/`. En el código y
+en las opciones, el simple se llama `limpio` (`vlom/limpio.py`, `--pipeline limpio`, `predicciones/test/limpio_todo/`).
 
-| | **completo (final)** | simple | B0 |
+| MRR, promedio de las cinco verticales | **completo (final)** | simple | B0 |
 |---|---|---|---|
-| MRR en val (2023S2, modelo `train`, promedio de las cinco verticales) | **0,378** | 0,350 | 0,137 |
-| MRR en nuestro test (2024S1, entrenado con train + val, promedio de las cinco) | **0,342** | 0,315 | 0,120 |
-| Δ MRR contra el B0 en val, por vertical (IC95) | j +0,206 (+0,183, +0,229) · r +0,214 (+0,178, +0,250) · d +0,388 (+0,324, +0,451) · it +0,241 (+0,200, +0,282) · rd +0,157 (+0,077, +0,243) | j +0,186 · r +0,192 · d +0,342 · it +0,211 · rd +0,133 | — |
-| para predecir el test con lo precalculado | < 1 min | < 1 min | |
+| nuestro test (2024S1, entrenado con train + val) | **0,342** | 0,315 | 0,120 |
+| val (2023S2, entrenado con train) | **0,378** | 0,350 | 0,137 |
+
+En test, el completo le gana al B0 por +0,222 (IC95 +0,199, +0,245) y al simple por +0,026 (+0,014, +0,040); los dos le
+ganan al B0 en las cinco verticales. Son los números del informe: la única evaluación en test del grupo. El modelo
+`sin_test` reentrenado con este repo da 0,341 y 0,313 (el entrenamiento en GPU no es determinista; licitación por
+licitación, ninguna diferencia es significativa salvo `r` del completo, en el límite: −0,010).
 
 Tres modelos, según con qué se entrenan: `train` (2022S1–2023S1) se evalúa en val; `sin_test` (2022S1–2023S2), en
-nuestro test; `todo` (2022S1–2024S1, todo `data/`) es el que predice el test de los organizadores. Detalle de val por
-vertical (Hit@1, Hit@5, Hit@100, S_inc / S_new): `generados/modelos/<pipeline>/train/resumen_val.csv` (viene en el
-release).
-
-Los números de test son los del informe: la única evaluación en test del grupo (completo − B0 +0,222, IC95 (+0,199,
-+0,245); completo − simple +0,026 (+0,014, +0,040)). El modelo `sin_test` reentrenado con este repo da 0,341 y 0,313:
-comparado licitación por licitación, la única diferencia en el límite de lo significativo es `r` en el completo (−0,010);
-el entrenamiento en GPU no es determinista.
+nuestro test; `todo` (2022S1–2024S1, todo `data/`) es el que predice el test de los organizadores. El detalle de val por
+vertical (Hit@k, S_inc / S_new) está en `generados/modelos/<pipeline>/train/resumen_val.csv` (viene en el release).
 
 ## Para los jueces: obtener las predicciones del test
 
@@ -119,7 +117,7 @@ lento, cortarlo y volver a correr `entrenar.py cache`: retoma desde el último c
 | `prediccion_*.zip` | embeddings del historial (`bge-small`, Gemma, LSA y su modelo), los dos grafos del 1/7/2024, los modelos `todo`, `sin_test` y `train` de los dos pipelines (con sus cross-encoders) | `bajar_precalculado.py` |
 | `test_*.zip` | todo lo calculado para el test de los organizadores (embeddings, pool, recorrido, variables, cross-encoder) | `bajar_precalculado.py` (salvo `--sin-test`) |
 | `entrenamiento_*.zip` | el caché de `data/`: pool, recorrido y variables de cada licitación, y los embeddings de sus licitaciones | `bajar_precalculado.py --entrenamiento` |
-| `predicciones_1.zip` | los CSV del test de los organizadores (completo y simple, modelos `todo` y `sin_test`) | a mano |
+| `predicciones_1.zip` | los CSV del test de los organizadores (completo y simple, modelos `todo` y `sin_test`) | no hace falta: son las salidas de `predecir.py` |
 
 Se arma con `uv run empaquetar.py` (zips en `generados/release/`); el repo y la etiqueta están en `vlom/release.py`.
 

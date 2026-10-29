@@ -5,9 +5,10 @@ historial (los 5 niveles del B0), ordenados por un LambdaRank de 15 variables. *
 es el completo (`predecir.py` en la raíz), que usa este ranking como primera etapa y le suma un cross-encoder afinado,
 EmbeddingGemma 2 y las empresas nombradas en la licitación.
 
-| | simple | completo (final) | B0 |
+| MRR, promedio de las cinco verticales | simple | completo (final) | B0 |
 |---|---|---|---|
-| MRR en val (2023S2, modelo `train`, promedio de las cinco) | 0,350 | 0,378 | 0,137 |
+| nuestro test (2024S1, entrenado con train + val) | 0,315 | 0,342 | 0,120 |
+| val (2023S2, entrenado con train) | 0,350 | 0,378 | 0,137 |
 
 Usa el mismo código (`vlom/limpio.py`, con `vlom/cache.py`, `vlom/grafo.py` y `vlom/recorrido.py`) y lo mismo
 precalculado que el completo. Desde la raíz del repo:
